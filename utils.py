@@ -77,7 +77,7 @@ def evaluate_acc(model, data_loader):
     return correct / total
 
 
-def plot_training_curves(train_losses, validation_losses, epoch_step=5):
+def plot_learning_curves(train_losses, validation_losses, epoch_step=5):
     x_values = epoch_step * np.arange(1, len(train_losses) + 1, 1)
 
     plt.figure(figsize=(8,8))
