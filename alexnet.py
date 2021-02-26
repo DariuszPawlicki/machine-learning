@@ -9,7 +9,7 @@ class AlexNet(nn.Module):
 
         self.conv1 = nn.Conv2d(3, 96, 11, 4) # Input Channels, Output Channels, Kernel Size, Stride, Padding
 
-        self.conv2 = nn.Conv2d(96, 256, 5, 1, 2,)
+        self.conv2 = nn.Conv2d(96, 256, 5, 1, 2)
         self.conv2.bias = torch.nn.Parameter(torch.ones_like(self.conv2.bias))
 
         self.conv3 = nn.Conv2d(256, 384, 3, 1, 1)

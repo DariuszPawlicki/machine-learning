@@ -1,12 +1,49 @@
 import torch
 import torch.optim as optim
 import torch.nn as nn
+from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
 import numpy as np
 
 
 def get_device():
     return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+
+def load_data(dataset="cifar", transform=None, valid_size=None, batches=128):
+
+    if transform is None:
+        transform = transforms.ToTensor()
+
+    if dataset == "cifar":
+        train_data = datasets.CIFAR10("./cifar/train", train=True, 
+                                      transform=transform, download=True)
+    
+        test_data = datasets.CIFAR10("./cifar/test", train=False, 
+                                     transform=transform, download=True)
+    
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size=batches)
+
+    if valid_size is None:
+        train_loader = torch.utils.data.DataLoader(train_data, batch_size=batches, shuffle=True)   
+
+        return (train_loader, test_loader)
+    else:
+        indices = np.arange(0, len(train_data))
+        np.random.shuffle(indices)
+
+        train_samples = int(valid_size * len(train_data))
+
+        train_ind = indices[:train_samples]
+        valid_ind = indices[train_samples:]
+
+        train_samp = torch.utils.data.SequentialSampler(train_ind)
+        valid_samp = torch.utils.data.SequentialSampler(valid_ind)
+
+        train_loader = torch.utils.data.DataLoader(train_data, batch_size=batches, sampler=train_samp)
+        valid_loader = torch.utils.data.DataLoader(train_data, batch_size=batches, sampler=valid_samp)
+
+        return (train_loader, valid_loader, test_loader)
 
 
 def train(model, optimizer, criterion, data_loader):
