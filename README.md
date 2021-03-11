@@ -7,3 +7,4 @@ This repository contains an Jupyter Notebooks with implementations of various pa
 | Notebook | Description |
 |--|--|
 | [AlexNet](https://github.com/DariuszPawlicki/machine-learning/blob/master/AlexNet.ipynb) | Implementation of famous Convolutional Neural Network, which outperformed rivals in LSVRC-2012.|
+| [ResNet](https://github.com/DariuszPawlicki/machine-learning/blob/master/ResNet.ipynb) | Implementation of ResNet, milestone in training very deep networks.|
