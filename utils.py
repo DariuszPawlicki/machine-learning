@@ -10,7 +10,7 @@ def get_device():
     return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-def load_data(dataset="cifar10", transform=None, train_size=None, batches=128):
+def load_data(dataset="cifar10", transform=None, train_size=None, batch_size=128):
 
     if transform is None:
         transform = transforms.ToTensor()
@@ -27,11 +27,11 @@ def load_data(dataset="cifar10", transform=None, train_size=None, batches=128):
     
         test_data = datasets.MNIST("./mnist/test", train=False, 
                                      transform=transform, download=True)
-    
-    test_loader = torch.utils.data.DataLoader(test_data, batch_size=batches)
+
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size)
 
     if train_size is None:
-        train_loader = torch.utils.data.DataLoader(train_data, batch_size=batches, shuffle=True)   
+        train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, shuffle=True)   
 
         return (train_loader, test_loader)
     else:
@@ -46,21 +46,10 @@ def load_data(dataset="cifar10", transform=None, train_size=None, batches=128):
         train_samp = torch.utils.data.SequentialSampler(train_ind)
         valid_samp = torch.utils.data.SequentialSampler(valid_ind)
 
-        train_loader = torch.utils.data.DataLoader(train_data, batch_size=batches, sampler=train_samp)
-        valid_loader = torch.utils.data.DataLoader(train_data, batch_size=batches, sampler=valid_samp)
+        train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, sampler=train_samp)
+        valid_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, sampler=valid_samp)
 
         return (train_loader, valid_loader, test_loader)
-
-
-def generate_noise(batch_size, data_dimension, as_fake=True):
-    noise_data = torch.randn(batch_size, data_dimension)
-
-    if as_fake == True:
-        noise_labels = torch.zeros(batch_size, 1)
-    else:
-        noise_labels = torch.ones(batch_size, 1)
-
-    return (noise_data, noise_labels)
 
 
 def train(model, optimizer, criterion, data_loader):
@@ -86,7 +75,7 @@ def train(model, optimizer, criterion, data_loader):
     return epoch_loss / len(data_loader)
 
 
-def train_gan(model, discr_optim, gene_optim, criterion, data_loader):
+def train_gan(model, discr_optim, gene_optim, criterion, data_loader, on_images):
     device = get_device()
 
     model.to(device)
@@ -96,21 +85,28 @@ def train_gan(model, discr_optim, gene_optim, criterion, data_loader):
     gene_epoch_loss = []
 
     for real_data, _ in data_loader:
+        
+        # DISCRIMINATOR
 
         real_data = real_data.to(device)
-        real_labels = torch.ones(real_data.shape[0], 1).to(device)
+        
+        if on_images == True:
+            noise_discr = torch.randn(real_data.shape[0], model.latent_dimension, 1, 1)
+            noise_gene = torch.randn(real_data.shape[0], model.latent_dimension, 1, 1)
+        else:
+            noise_discr = torch.randn(real_data.shape[0], model.latent_dimension)
+            noise_gene = torch.randn(real_data.shape[0], model.latent_dimension)
+        
+        noise_discr = noise_discr.to(device)
+        noise_gene = noise_gene.to(device)
 
-        noise_data, noise_labels = generate_noise(real_data.shape[0], model.latent_dimension)
-        noise_data = noise_data.to(device)
-        noise_labels = noise_labels.to(device)
+        generated_data = model(noise_discr, generator=True)
 
-        generated_data = model(noise_data, generator=True)
+        discr_real_out = model(real_data).reshape(-1)
+        discr_gene_out = model(generated_data).reshape(-1)
 
-        discr_real_out = model(real_data)
-        discr_gene_out = model(generated_data)
-
-        discr_real_loss = criterion(discr_real_out, real_labels)
-        discr_gene_loss = criterion(discr_gene_out, noise_labels)
+        discr_real_loss = criterion(discr_real_out, torch.ones_like(discr_real_out))
+        discr_gene_loss = criterion(discr_gene_out, torch.zeros_like(discr_gene_out))
 
         discr_loss = discr_real_loss + discr_gene_loss
         
@@ -119,18 +115,14 @@ def train_gan(model, discr_optim, gene_optim, criterion, data_loader):
         discr_optim.step()
 
         discr_epoch_loss.append(discr_loss.item())
-    
-    for real_data, _ in data_loader:
-
-        noise_data, noise_labels = generate_noise(real_data.shape[0], model.latent_dimension, as_fake=False)
-        noise_data = noise_data.to(device)
-        noise_labels = noise_labels.to(device)
-
-        generated_data = model(noise_data, generator=True)
         
-        discr_gene_out = model(generated_data)
+        # GENERATOR
 
-        gene_loss = criterion(discr_gene_out, noise_labels)
+        generated_data = model(noise_gene, generator=True)
+        
+        discr_gene_out = model(generated_data).reshape(real_data.shape[0], 1)
+
+        gene_loss = criterion(discr_gene_out, torch.ones_like(discr_gene_out))
 
         gene_optim.zero_grad()
         gene_loss.backward()

@@ -60,7 +60,8 @@ class Generator(nn.Module):
 
 
 class GAN(nn.Module):
-    def __init__(self, data_dimension, latent_dimension, discriminator_size, generator_size, dropout=0.5, batch_norm=False):
+    def __init__(self, data_dimension, latent_dimension, discriminator_size=None, generator_size=None, 
+                 dropout=0.5, batch_norm=False):
         """   
         Input size is size of image flattened to vector, 
         for example 20x20 image gives 400x1 vector.
@@ -80,8 +81,12 @@ class GAN(nn.Module):
         else:
             self.latent_dimension = latent_dimension
         
-        self.discriminator = Discriminator(self.data_dimension, discriminator_size, dropout=dropout, batch_norm=batch_norm)
-        self.generator = Generator(self.data_dimension, self.latent_dimension, generator_size, batch_norm=batch_norm)
+        if discriminator_size == None or generator_size == None:
+            self.discriminator = None
+            self.generator = None
+        else:
+            self.discriminator = Discriminator(self.data_dimension, discriminator_size, dropout=dropout, batch_norm=batch_norm)
+            self.generator = Generator(self.data_dimension, self.latent_dimension, generator_size, batch_norm=batch_norm)
     
 
     def forward(self, x, generator=False):
@@ -97,7 +102,10 @@ class GAN(nn.Module):
         return np.where(discr_out >= 0.5, 1, 0)
     
 
-    def generate(self, size):
-        noise = torch.randn(size, self.latent_dimension)
+    def generate(self, size, as_img):
+        if as_img == True:
+            noise = torch.randn(size, self.latent_dimension, 1, 1)
+        else:
+            noise = torch.randn(size, self.latent_dimension)
 
         return self.generator(noise)
